@@ -35,29 +35,29 @@ class DogWidget(QWidget):
         self.closeButton.setStyleSheet("background-color: red; color: white; border: none;")
         self.addShadowEffect(self.closeButton)
 
-        self.cfgButton = QPushButton(self)
-        self.cfgButton.setFixedSize(25, 25)
-        self.cfgButton.setIcon(QIcon("./assets/gear_icon.png"))
-        self.cfgButton.setStyleSheet("""
+        self.confButton = QPushButton(self)
+        self.confButton.setFixedSize(25, 25)
+        self.confButton.setIcon(QIcon("./assets/gear_icon.png"))
+        self.confButton.setStyleSheet("""
             background-color: gray;
             border: 1px solid black;
             border-radius: 3px;
         """)
-        self.addShadowEffect(self.cfgButton)
+        self.addShadowEffect(self.confButton)
 
-        self.tlsButton = QPushButton(self)
-        self.tlsButton.setFixedSize(25, 25)
-        self.tlsButton.setIcon(QIcon("./assets/play_icon.png"))
-        self.tlsButton.setStyleSheet("""
+        self.playButton = QPushButton(self)
+        self.playButton.setFixedSize(25, 25)
+        self.playButton.setIcon(QIcon("./assets/play_icon.png"))
+        self.playButton.setStyleSheet("""
             background-color: green;
             border: 1px solid black;
             border-radius: 3px;
         """)
-        self.tlsButton.clicked.connect(self.startMonitoring)
-        self.addShadowEffect(self.tlsButton)
+        self.playButton.clicked.connect(self.startMonitoring)
+        self.addShadowEffect(self.playButton)
 
-        buttons_layout.addWidget(self.tlsButton)
-        buttons_layout.addWidget(self.cfgButton)
+        buttons_layout.addWidget(self.playButton)
+        buttons_layout.addWidget(self.confButton)
         buttons_layout.addWidget(self.closeButton)
 
         main_layout.addLayout(gif_layout)

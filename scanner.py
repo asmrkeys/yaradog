@@ -9,7 +9,7 @@ def start_monitoring(paths, loop):
     Start monitoring the given paths for changes.
     """
     observer = Observer()
-    handler = ChangeHandler(loop=loop, debug=False, defense=True, aggressive=True)
+    handler = ChangeHandler(loop=loop, debug=True, defense=True, aggressive=True)
     asyncio.run_coroutine_threadsafe(session_log('Starting monitoring for changes...'), loop).result()
     for path in paths:
         observer.schedule(handler, path, recursive=True)
