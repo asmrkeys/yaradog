@@ -1,4 +1,3 @@
-
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QMovie, QColor, QIcon, QTextCursor
 from PyQt5.QtWidgets import (
@@ -6,12 +5,12 @@ from PyQt5.QtWidgets import (
     QLabel, 
     QWidget, 
     QVBoxLayout,
-     QPushButton, 
-     QHBoxLayout, 
-     QGraphicsDropShadowEffect, 
-     QTextEdit, 
-     QScrollBar
-     )
+    QPushButton, 
+    QHBoxLayout, 
+    QGraphicsDropShadowEffect, 
+    QTextEdit, 
+    QScrollBar
+)
 from scanner import scanner
 import sys
 import threading
@@ -163,16 +162,20 @@ class TextReaderWidget(QWidget):
         
         if not os.path.exists(log_file_path):
             with open(log_file_path, 'w') as file:
-                file.write("")  # Crea el archivo si no existe
+                file.write("")
         
         while True:
             try:
                 with open(log_file_path, 'r') as file:
-                    file.seek(self.last_position)
-                    new_content = file.read()
-                    if new_content:
-                        self.last_position = file.tell()
-                        self.textChanged.emit(new_content)
+                    lines = file.readlines()
+                    if len(lines) <= 1:
+                        self.last_position = 0  # Reset position if file is cleared or nearly empty
+                    else:
+                        file.seek(self.last_position)
+                        new_content = file.read()
+                        if new_content:
+                            self.last_position = file.tell()
+                            self.textChanged.emit(new_content)
                 time.sleep(.3)
             except Exception as e:
                 self.textChanged.emit(f"Error loading file: {e}")

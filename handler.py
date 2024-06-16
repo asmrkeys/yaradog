@@ -15,8 +15,7 @@ class ChangeHandler(FileSystemEventHandler):
     Handles file system events and performs actions based on those events.
     """
     def __init__(self, loop, debug=False, defense=False, aggressive=False):
-        self.cache = {}
-        self.processed_files = set()
+        self.processed_files = {}
         self.debug = debug
         self.defense = defense
         self.aggressive = aggressive
@@ -81,15 +80,11 @@ class ChangeHandler(FileSystemEventHandler):
 
         self.scan_whitelist_path = join(script_dir, 'conf', 'whitelist.txt')
         whitelist_paths = open(self.scan_whitelist_path, 'r').read().splitlines()
-        self.scan_whitelist_tuple = ()
-        for whitelist_path in whitelist_paths:
-            self.scan_whitelist_tuple += (whitelist_path,)
+        self.scan_whitelist_tuple = tuple(whitelist_paths)
 
         self.file_extensions_path = join(script_dir, 'conf', 'file_extensions.txt')
-        self.file_extensions_tuple = ()
         extensions = open(self.file_extensions_path, 'r').read().splitlines()
-        for extension in extensions:
-            self.file_extensions_tuple += (extension,)
+        self.file_extensions_tuple = tuple(extensions)
 
         # Log initial messages after the event loop is running
         self.loop.call_soon(self.initial_log)
@@ -99,6 +94,9 @@ class ChangeHandler(FileSystemEventHandler):
 
         # Schedule the session log length checker
         self.loop.create_task(self.periodic_session_log_check())
+
+        # Schedule the processed files cleaner
+        self.loop.create_task(self.clean_processed_files())
 
     def initialize_lock(self):
         """
@@ -115,7 +113,6 @@ class ChangeHandler(FileSystemEventHandler):
             self.loop.create_task(session_log('AGGRESSIVE MODE ACTIVE: Files with the configured extensions created will be automatically deleted.'))
 
     async def log_event(self, event_type, event_path, dest_path=None):
-        self.clean_cache()
         event_time = datetime.now().isoformat()
         try:
             file_size = getsize(event_path) if exists(event_path) else None
@@ -135,7 +132,7 @@ class ChangeHandler(FileSystemEventHandler):
         }
         cache_key = f"{event_type}_{event_path}"
 
-        if event_type == 'File created' or event_type == 'File modified':
+        if event_type in ['File created', 'File modified']:
             if event_details['file_path'].endswith(self.file_extensions_tuple):
                 await session_log(f'[{event_time}] WARNING: File with a configured extension created in: "{event_path}"')
                 await self.cache_event(event_details, 'warning_files', 1)
@@ -145,23 +142,18 @@ class ChangeHandler(FileSystemEventHandler):
                 await session_log(f'[{event_time}] WARNING: Malware detected in: "{event_path}"')
                 if not event_details['file_path'].startswith(self.scan_whitelist_tuple) and event_path[1:] != self.yara_forge_rules_full_path[1:]:
                     await self.if_defense(event_time, event_path, event_details)
-                await session_log(f'[{event_time}] INFO: Alert received by {yara_scan(event_path)[1]} YARA Rule')
+                await session_log(f'[{event_time}] INFO: Alert received by {yara_scan(event_path)[1]} YARA Rule in "{event_path}"')
                 await self.cache_event(event_details, 'warning_malware_detected', 1)
         
         if cache_key not in self.processed_files:
-            self.processed_files.add(cache_key)
+            self.processed_files[cache_key] = time()
             current_time = time()
 
             if event_type == 'File created':
-                previously_existed = self.cache.get(event_path, {}).get('exists', False)
-                last_seen = self.cache.get(event_path, {}).get('time', 0)
-                currently_exists = exists(event_path)
                 if event_path[:1] not in self.all_paths:
                     await self.cache_event(event_details, 'file_created', 9)
-                if not previously_existed and currently_exists and (current_time - last_seen > 60):
                     await session_log(f'[{event_time}] Attention: File created in: "{event_path}"')
                     await self.cache_event(event_details, 'warning_events', 1)
-                self.cache[event_path] = {'exists': currently_exists, 'time': current_time}
 
             elif event_type == 'File modified' and event_path[:1]:
                 if event_path[1:] not in self.all_paths:
@@ -169,14 +161,11 @@ class ChangeHandler(FileSystemEventHandler):
 
             elif event_type == 'File deleted':
                 await self.cache_event(event_details, 'file_deleted', 10)
-                self.cache[event_path] = {'exists': False, 'time': current_time}
-                self.processed_files.discard(cache_key)  # Allow re-processing of this file path
+                self.processed_files.pop(cache_key, None)  # Remove from processed_files
 
             elif event_type == 'File moved':
                 await self.cache_event(event_details, 'file_moved', 10)
-                self.cache[event_path] = {'exists': False, 'time': current_time}
-                self.cache[dest_path] = {'exists': True, 'time': current_time}
-                self.processed_files.discard(cache_key)  # Allow re-processing of this file path
+                self.processed_files.pop(cache_key, None)  # Remove from processed_files
 
             elif event_type == 'Directory created':
                 await self.cache_event(event_details, 'directory_created', 10)
@@ -231,31 +220,6 @@ class ChangeHandler(FileSystemEventHandler):
         """
         return yara_scan(event_path)[1]
 
-    def check_content(self, file_path, patterns):
-        """
-        Check if the file content matches any of the given patterns.
-        """
-        try:
-            with open(file_path, 'r', encoding='utf-8') as file:
-                content = file.read()
-                for pattern in patterns:
-                    if pattern in content:
-                        return True
-        except UnicodeDecodeError:
-            try:
-                with open(file_path, 'rb') as file:
-                    content = file.read()
-                    for pattern in patterns:
-                        if pattern.encode() in content:
-                            return True
-            except Exception as e:
-                if self.debug:
-                    create_task(session_log(f'Error checking content of {file_path} in binary mode: {e}'))
-        except Exception as e:
-            if self.debug:
-                create_task(session_log(f'Error checking content of {file_path}: {e}'))
-        return False
-
     async def cache_event(self, event_details, cache_key, log_threshold):
         """
         Cache the event and flush to log if the threshold is reached.
@@ -263,15 +227,6 @@ class ChangeHandler(FileSystemEventHandler):
         self.event_caches[cache_key].append(event_details)
         if len(self.event_caches[cache_key]) >= log_threshold:
             await self.flush_cache_to_log(cache_key)
-
-    def clean_cache(self):
-        """
-        Clean the cache by removing old entries.
-        """
-        current_time = time()
-        keys_to_delete = [key for key, value in self.cache.items() if current_time - value['time'] > 60]
-        for key in keys_to_delete:
-            del self.cache[key]
 
     async def flush_cache_to_log(self, cache_key):
         """
@@ -339,6 +294,17 @@ class ChangeHandler(FileSystemEventHandler):
             except Exception as e:
                 if self.debug:
                     create_task(session_log(f'Error during log file backup: {e}'))
+
+    async def clean_processed_files(self):
+        """
+        Periodically clean the processed_files set.
+        """
+        while True:
+            current_time = time()
+            keys_to_delete = [key for key, timestamp in self.processed_files.items() if current_time - timestamp > 60]
+            for key in keys_to_delete:
+                del self.processed_files[key]
+            await sleep(60)  # Clean every 60 seconds
 
     def flush_caches(self):
         """
