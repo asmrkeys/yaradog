@@ -11,6 +11,7 @@ script_dir = dirname(abspath(__file__))
 json_filename = join(script_dir, 'json', 'paths.json')
 yara_rules = yara.compile(filepath=join(script_dir, 'yara', 'yara-forge-rules-full.yar'))
 log_lock = None
+last_log_text = None  # Variable to store the last logged text
 
 def initialize_lock():
     global log_lock
@@ -88,13 +89,16 @@ async def session_log(log_text):
     """
     Asynchronously logs the provided text to the session log file.
     Ensures that log entries do not overlap by using a lock.
+    Logs only if the new log_text is different from the last logged text.
         
     :param log_text: The text to be logged.
     """
-    global log_lock
+    global log_lock, last_log_text
     log_filename = join(script_dir, 'logs', 'session.log')
     if log_lock is None:
         initialize_lock()
     async with log_lock:
-        async with aiofiles_open(log_filename, 'a') as log_file:
-            await log_file.write(log_text + '\n')
+        if log_text != last_log_text:  # Log only if the text is different from the last log
+            async with aiofiles_open(log_filename, 'a') as log_file:
+                await log_file.write(log_text + '\n')
+            last_log_text = log_text  # Update the last logged text
