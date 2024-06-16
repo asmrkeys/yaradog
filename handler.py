@@ -16,6 +16,7 @@ class ChangeHandler(FileSystemEventHandler):
     """
     def __init__(self, loop, debug=False, defense=False, aggressive=False):
         self.cache = {}
+        self.processed_files = set()
         self.debug = debug
         self.defense = defense
         self.aggressive = aggressive
@@ -26,7 +27,6 @@ class ChangeHandler(FileSystemEventHandler):
 
         # Initialize event caches and log file paths
         self.event_caches = {
-            'session': [],
             'file_created': [],
             'file_modified': [],
             'file_deleted': [],
@@ -94,7 +94,11 @@ class ChangeHandler(FileSystemEventHandler):
         # Log initial messages after the event loop is running
         self.loop.call_soon(self.initial_log)
 
+        # Register the cache flush function to be called on exit
         register(self.flush_caches)
+
+        # Schedule the session log length checker
+        self.loop.create_task(self.periodic_session_log_check())
 
     def initialize_lock(self):
         """
@@ -129,70 +133,71 @@ class ChangeHandler(FileSystemEventHandler):
             'file_size': file_size,
             'yara_rule': self.yara_rule(event_path)
         }
-        if (event_path not in self.cache and 
-            not self.cache.get(event_path, {}).get('exists', False)):
-                current_time = time()
-                if yara_scan(event_path)[0] == True:
-                    await session_log(f'[{event_time}] WARNING: Malware detected in: "{event_path}"')
-                    if not event_details['file_path'].startswith(self.scan_whitelist_tuple) and event_path[1:] != self.yara_forge_rules_full_path[1:]:
-                        await self.if_defense(event_time, event_path, event_details)
-                    await session_log(f'[{event_time}] INFO: Alert received by {yara_scan(event_path)[1]} YARA Rule')
-                    await self.cache_event(event_details, 'warning_malware_detected', 1)
+        cache_key = f"{event_type}_{event_path}"
 
-                elif event_type == 'File created':
-                    if event_details['file_path'].endswith(self.file_extensions_tuple):
-                        await session_log(f'[{event_time}] WARNING: File with a configured extension created in: "{event_path}"')
-                        await self.cache_event(event_details, 'warning_files', 1)
-                        if not event_details['file_path'].startswith(self.scan_whitelist_tuple):
-                            await self.if_aggressive(event_time, event_path, event_details)
-                    else:
-                        previously_existed = self.cache.get(event_path, {}).get('exists', False)
-                        last_seen = self.cache.get(event_path, {}).get('time', 0)
-                        currently_exists = exists(event_path)
-                        if event_path[:1] not in self.all_paths:
-                            await self.cache_event(event_details, 'file_created', 9)
-                        if not previously_existed and currently_exists and (current_time - last_seen > 60):
-                            await session_log(f'[{event_time}] Attention: File created in: "{event_path}"')
-                            await self.cache_event(event_details, 'warning_events', 1)
-                        self.cache[event_path] = {'exists': currently_exists, 'time': current_time}
+        if event_type == 'File created' or event_type == 'File modified':
+            if event_details['file_path'].endswith(self.file_extensions_tuple):
+                await session_log(f'[{event_time}] WARNING: File with a configured extension created in: "{event_path}"')
+                await self.cache_event(event_details, 'warning_files', 1)
+                if not event_details['file_path'].startswith(self.scan_whitelist_tuple):
+                    await self.if_aggressive(event_time, event_path, event_details)
+            if yara_scan(event_path)[0]:
+                await session_log(f'[{event_time}] WARNING: Malware detected in: "{event_path}"')
+                if not event_details['file_path'].startswith(self.scan_whitelist_tuple) and event_path[1:] != self.yara_forge_rules_full_path[1:]:
+                    await self.if_defense(event_time, event_path, event_details)
+                await session_log(f'[{event_time}] INFO: Alert received by {yara_scan(event_path)[1]} YARA Rule')
+                await self.cache_event(event_details, 'warning_malware_detected', 1)
+        
+        if cache_key not in self.processed_files:
+            self.processed_files.add(cache_key)
+            current_time = time()
 
-                elif event_type == 'File modified' and event_path[:1]:
-                    if event_details['file_path'].endswith(self.file_extensions_tuple):
-                        await session_log(f'[{event_time}] Attention: File with a configured extension modified in: {event_path}')
-                        await self.cache_event(event_details, 'warning_files', 1)
-                    else:
-                        if event_path[1:] not in self.all_paths:
-                            await self.cache_event(event_details, 'file_modified', 100)
+            if event_type == 'File created':
+                previously_existed = self.cache.get(event_path, {}).get('exists', False)
+                last_seen = self.cache.get(event_path, {}).get('time', 0)
+                currently_exists = exists(event_path)
+                if event_path[:1] not in self.all_paths:
+                    await self.cache_event(event_details, 'file_created', 9)
+                if not previously_existed and currently_exists and (current_time - last_seen > 60):
+                    await session_log(f'[{event_time}] Attention: File created in: "{event_path}"')
+                    await self.cache_event(event_details, 'warning_events', 1)
+                self.cache[event_path] = {'exists': currently_exists, 'time': current_time}
 
-                elif event_type == 'File deleted':
-                    await self.cache_event(event_details, 'file_deleted', 10)
-                    self.cache[event_path] = {'exists': False, 'time': current_time}
+            elif event_type == 'File modified' and event_path[:1]:
+                if event_path[1:] not in self.all_paths:
+                    await self.cache_event(event_details, 'file_modified', 100)
 
-                elif event_type == 'File moved':
-                    await self.cache_event(event_details, 'file_moved', 10)
-                    self.cache[event_path] = {'exists': False, 'time': current_time}
-                    self.cache[dest_path] = {'exists': True, 'time': current_time}
+            elif event_type == 'File deleted':
+                await self.cache_event(event_details, 'file_deleted', 10)
+                self.cache[event_path] = {'exists': False, 'time': current_time}
+                self.processed_files.discard(cache_key)  # Allow re-processing of this file path
 
-                elif event_type == 'Directory created':
-                    await self.cache_event(event_details, 'directory_created', 10)
+            elif event_type == 'File moved':
+                await self.cache_event(event_details, 'file_moved', 10)
+                self.cache[event_path] = {'exists': False, 'time': current_time}
+                self.cache[dest_path] = {'exists': True, 'time': current_time}
+                self.processed_files.discard(cache_key)  # Allow re-processing of this file path
 
-                elif event_type == 'Directory modified':
-                    await self.cache_event(event_details, 'directory_modified', 10)
+            elif event_type == 'Directory created':
+                await self.cache_event(event_details, 'directory_created', 10)
 
-                elif event_type == 'Directory deleted':
-                    await self.cache_event(event_details, 'directory_deleted', 10)
+            elif event_type == 'Directory modified':
+                await self.cache_event(event_details, 'directory_modified', 10)
 
-                elif event_type == 'Link created':
-                    await self.cache_event(event_details, 'link_created', 10)
+            elif event_type == 'Directory deleted':
+                await self.cache_event(event_details, 'directory_deleted', 10)
 
-                elif event_type == 'Link deleted':
-                    await self.cache_event(event_details, 'link_deleted', 10)
+            elif event_type == 'Link created':
+                await self.cache_event(event_details, 'link_created', 10)
 
-                elif event_type == 'Link modified':
-                    await self.cache_event(event_details, 'link_modified', 10)
+            elif event_type == 'Link deleted':
+                await self.cache_event(event_details, 'link_deleted', 10)
 
-                elif event_type == 'Link moved':
-                    await self.cache_event(event_details, 'link_moved', 10)
+            elif event_type == 'Link modified':
+                await self.cache_event(event_details, 'link_modified', 10)
+
+            elif event_type == 'Link moved':
+                await self.cache_event(event_details, 'link_moved', 10)
 
     async def if_defense(self, event_time, event_path, event_details):
         """
@@ -213,7 +218,7 @@ class ChangeHandler(FileSystemEventHandler):
         """
         if self.aggressive:
             try:
-                await sleep(0.5) # ""
+                await sleep(0.5)  # Small delay to ensure logs are written
                 subprocess_run(f'del /f "{event_path}"', shell=True, check=True, stdout=PIPE, stderr=PIPE)
                 await session_log(f'[{event_time}] SUCCESSFUL: The file "{event_path}" has been deleted.')
                 await self.cache_event(event_details, 'deleted_files', 1)
@@ -244,10 +249,10 @@ class ChangeHandler(FileSystemEventHandler):
                         if pattern.encode() in content:
                             return True
             except Exception as e:
-                if self.debug:               
+                if self.debug:
                     create_task(session_log(f'Error checking content of {file_path} in binary mode: {e}'))
         except Exception as e:
-            if self.debug:          
+            if self.debug:
                 create_task(session_log(f'Error checking content of {file_path}: {e}'))
         return False
 
@@ -286,16 +291,48 @@ class ChangeHandler(FileSystemEventHandler):
         """
         if exists(log_filename):
             try:
+                backup_dir = join(script_dir, 'logs', 'saved')
+                makedirs(backup_dir, exist_ok=True)
                 with open(log_filename, 'r') as file:
                     lines = file.readlines()
-                    if len(lines) >= 1000:
-                        backup_dir = join(script_dir, 'logs', 'saved')
-                        makedirs(backup_dir, exist_ok=True)
+                    if len(lines) >= 100:
                         backup_filename = join(backup_dir, basename(log_filename))
                         with open(backup_filename, 'a') as backup_file:
                             backup_file.writelines(lines)
                         with open(log_filename, 'w') as file:
-                            pass
+                            pass  # Clear the log file after backing up
+            except FileNotFoundError:
+                if self.debug:
+                    create_task(session_log(f'Log file not found for backup: {log_filename}'))
+            except Exception as e:
+                if self.debug:
+                    create_task(session_log(f'Error during log file backup: {e}'))
+
+    async def periodic_session_log_check(self):
+        """
+        Periodically check the session log length and back it up if necessary.
+        """
+        while True:
+            self.check_session_log_length()
+            await sleep(60)  # Check every 60 seconds
+
+    def check_session_log_length(self):
+        """
+        Check the length of the session log and back it up if it exceeds 100 lines.
+        """
+        log_filename = self.session_log_filename
+        if exists(log_filename):
+            try:
+                backup_dir = join(script_dir, 'logs', 'saved')
+                makedirs(backup_dir, exist_ok=True)
+                with open(log_filename, 'r') as file:
+                    lines = file.readlines()
+                    if len(lines) >= 100:
+                        backup_filename = join(backup_dir, 'session.log')
+                        with open(backup_filename, 'a') as backup_file:
+                            backup_file.writelines(lines)
+                        with open(log_filename, 'w') as file:
+                            pass  # Clear the log file after backing up
             except FileNotFoundError:
                 if self.debug:
                     create_task(session_log(f'Log file not found for backup: {log_filename}'))

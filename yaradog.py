@@ -1,11 +1,22 @@
+
+from PyQt5.QtCore import Qt, QSize, pyqtSignal
+from PyQt5.QtGui import QMovie, QColor, QIcon, QTextCursor
+from PyQt5.QtWidgets import (
+    QApplication, 
+    QLabel, 
+    QWidget, 
+    QVBoxLayout,
+     QPushButton, 
+     QHBoxLayout, 
+     QGraphicsDropShadowEffect, 
+     QTextEdit, 
+     QScrollBar
+     )
+from scanner import scanner
 import sys
 import threading
 import time
-from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QGraphicsDropShadowEffect, QTextEdit, QScrollBar
-from PyQt5.QtCore import Qt, QSize, pyqtSignal
-from PyQt5.QtGui import QMovie, QColor, QIcon, QTextCursor
 import os
-from scanner import scanner
 
 class DogWidget(QWidget):
     def __init__(self):
@@ -94,9 +105,26 @@ class DogWidget(QWidget):
             event.accept()
 
     def startMonitoring(self):
+        self.backup_and_clear_log()
         threading.Thread(target=scanner, daemon=True).start()
         self.textReader = TextReaderWidget()
         self.textReader.show()
+
+    def backup_and_clear_log(self):
+        log_file_path = './logs/session.log'
+        backup_dir = './logs/saved/'
+        backup_file_path = os.path.join(backup_dir, 'session.log')
+
+        if not os.path.exists(backup_dir):
+            os.makedirs(backup_dir)
+
+        if os.path.exists(log_file_path):
+            with open(log_file_path, 'r') as file:
+                lines = file.readlines()
+                with open(backup_file_path, 'a') as backup_file:
+                    backup_file.writelines(lines)
+            with open(log_file_path, 'w') as file:
+                pass  # Clear the log file
 
 class TextReaderWidget(QWidget):
     textChanged = pyqtSignal(str)
