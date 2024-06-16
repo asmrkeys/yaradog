@@ -135,7 +135,7 @@ class ChangeHandler(FileSystemEventHandler):
                 if yara_scan(event_path)[0] == True:
                     await session_log(f'[{event_time}] WARNING: Malware detected in: "{event_path}"')
                     if not event_details['file_path'].startswith(self.scan_whitelist_tuple) and event_path[1:] != self.yara_forge_rules_full_path[1:]:
-                        await self.if_defense(event_path, event_details)
+                        await self.if_defense(event_time, event_path, event_details)
                     await session_log(f'[{event_time}] INFO: Alert received by {yara_scan(event_path)[1]} YARA Rule')
                     await self.cache_event(event_details, 'warning_malware_detected', 1)
 
@@ -144,7 +144,7 @@ class ChangeHandler(FileSystemEventHandler):
                         await session_log(f'[{event_time}] WARNING: File with a configured extension created in: "{event_path}"')
                         await self.cache_event(event_details, 'warning_files', 1)
                         if not event_details['file_path'].startswith(self.scan_whitelist_tuple):
-                            await self.if_aggressive(event_path, event_details)
+                            await self.if_aggressive(event_time, event_path, event_details)
                     else:
                         previously_existed = self.cache.get(event_path, {}).get('exists', False)
                         last_seen = self.cache.get(event_path, {}).get('time', 0)
@@ -194,7 +194,7 @@ class ChangeHandler(FileSystemEventHandler):
                 elif event_type == 'Link moved':
                     await self.cache_event(event_details, 'link_moved', 10)
 
-    async def if_defense(self, event_path, event_details):
+    async def if_defense(self, event_time, event_path, event_details):
         """
         Delete the file if defense mode is active.
         """
@@ -202,12 +202,12 @@ class ChangeHandler(FileSystemEventHandler):
             try:
                 await sleep(0.5)  # Small delay to ensure logs are written
                 subprocess_run(f'del /f "{event_path}"', shell=True, check=True, stdout=PIPE, stderr=PIPE)
-                await session_log(f'SUCCESSFUL: The file "{event_path}" has been deleted.')
+                await session_log(f'[{event_time}] SUCCESSFUL: The file "{event_path}" has been deleted.')
                 await self.cache_event(event_details, 'deleted_files', 1)
             except Exception as e:
                 await session_log(f'"{event_path}" file could not be removed: {e}')
 
-    async def if_aggressive(self, event_path, event_details):
+    async def if_aggressive(self, event_time, event_path, event_details):
         """
         Delete the file if aggressive mode is active.
         """
@@ -215,7 +215,7 @@ class ChangeHandler(FileSystemEventHandler):
             try:
                 await sleep(0.5) # ""
                 subprocess_run(f'del /f "{event_path}"', shell=True, check=True, stdout=PIPE, stderr=PIPE)
-                await session_log(f'SUCCESSFUL: The file "{event_path}" has been deleted.')
+                await session_log(f'[{event_time}] SUCCESSFUL: The file "{event_path}" has been deleted.')
                 await self.cache_event(event_details, 'deleted_files', 1)
             except Exception as e:
                 await session_log(f'"{event_path}" file could not be removed: {e}')
