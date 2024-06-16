@@ -16,6 +16,7 @@ import sys
 import threading
 import time
 import os
+import ctypes
 
 class DogWidget(QWidget):
     def __init__(self):
@@ -25,6 +26,7 @@ class DogWidget(QWidget):
     def initUI(self):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
+        self.setWindowIcon(QIcon("./assets/yaradog_icon.ico"))
 
         main_layout = QVBoxLayout()
         gif_layout = QHBoxLayout()
@@ -139,6 +141,7 @@ class TextReaderWidget(QWidget):
     def initUI(self):
         self.setWindowTitle('yaradog.log')
         self.setGeometry(100, 100, 400, 300)
+        self.setWindowIcon(QIcon("./assets/yaradog_icon.ico"))
 
         layout = QVBoxLayout()
         self.textEdit = QTextEdit(self)
@@ -204,6 +207,9 @@ class TextReaderWidget(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
+    app.setWindowIcon(QIcon("./assets/yaradog_icon.ico"))
+    myappid = 'yaradog.ipd.v0.5.0' 
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
     dog = DogWidget()
     dog.show()
     sys.exit(app.exec_())
