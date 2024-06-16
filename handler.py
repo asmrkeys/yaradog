@@ -26,6 +26,7 @@ class ChangeHandler(FileSystemEventHandler):
 
         # Initialize event caches and log file paths
         self.event_caches = {
+            'session': [],
             'file_created': [],
             'file_modified': [],
             'file_deleted': [],
@@ -42,6 +43,7 @@ class ChangeHandler(FileSystemEventHandler):
             'warning_malware_detected': [],
             'deleted_files': []
         }
+        self.session_log_filename = join(script_dir, 'logs', 'session.log')
         self.file_created_log_filename = join(script_dir, 'logs', 'file_created.log')
         self.file_modified_log_filename = join(script_dir, 'logs', 'file_modified.log')
         self.file_deleted_log_filename = join(script_dir, 'logs', 'file_deleted.log')
@@ -59,6 +61,7 @@ class ChangeHandler(FileSystemEventHandler):
         self.deleted_files_log_filename = join(script_dir, 'logs', 'deleted_files.log')
         self.yara_forge_rules_full_path = join(script_dir, 'yara', 'yara-forge-rules-full.yar')
         self.all_paths = [
+            self.session_log_filename[1:],
             self.file_created_log_filename[1:],
             self.file_modified_log_filename[1:],
             self.file_deleted_log_filename[1:],
@@ -73,7 +76,7 @@ class ChangeHandler(FileSystemEventHandler):
             self.warning_events_log_filename[1:],
             self.warning_files_log_filename[1:],
             self.warning_malware_detected_log_filename[1:],
-            self.deleted_files_log_filename[1:],
+            self.deleted_files_log_filename[1:]
         ]
 
         self.scan_whitelist_path = join(script_dir, 'conf', 'whitelist.txt')
@@ -116,8 +119,7 @@ class ChangeHandler(FileSystemEventHandler):
             file_size = None
         except Exception as e:
             if self.debug:
-                event_time = datetime.now().isoformat()
-                await session_log(f'[{event_time}] Error getting size of {event_path}: {e}')
+                await session_log(f'Error getting size of {event_path}: {e}')
             file_size = None
         event_details = {
             'event_type': event_type,
@@ -198,13 +200,12 @@ class ChangeHandler(FileSystemEventHandler):
         """
         if self.defense:
             try:
-                while not exists(event_path):
-                    await sleep(0.1)
+                await sleep(0.5)  # Small delay to ensure logs are written
                 subprocess_run(f'del /f "{event_path}"', shell=True, check=True, stdout=PIPE, stderr=PIPE)
-                await session_log(f'[{event_time}] SUCCESSFUL: The file "{event_path}" has been deleted.')
+                await session_log(f'SUCCESSFUL: The file "{event_path}" has been deleted.')
                 await self.cache_event(event_details, 'deleted_files', 1)
             except Exception as e:
-                await session_log(f'[{event_time}] "{event_path}" file could not be removed: {e}')
+                await session_log(f'"{event_path}" file could not be removed: {e}')
 
     async def if_aggressive(self, event_path, event_details):
         """
@@ -212,13 +213,12 @@ class ChangeHandler(FileSystemEventHandler):
         """
         if self.aggressive:
             try:
-                while not exists(event_path):
-                    await sleep(0.1)
+                await sleep(0.5) # ""
                 subprocess_run(f'del /f "{event_path}"', shell=True, check=True, stdout=PIPE, stderr=PIPE)
-                await session_log(f'[{event_time}] SUCCESSFUL: The file "{event_path}" has been deleted.')
+                await session_log(f'SUCCESSFUL: The file "{event_path}" has been deleted.')
                 await self.cache_event(event_details, 'deleted_files', 1)
             except Exception as e:
-                await session_log(f'[{event_time}] "{event_path}" file could not be removed: {e}')
+                await session_log(f'"{event_path}" file could not be removed: {e}')
 
     def yara_rule(self, event_path):
         """
@@ -244,13 +244,11 @@ class ChangeHandler(FileSystemEventHandler):
                         if pattern.encode() in content:
                             return True
             except Exception as e:
-                if self.debug:
-                    event_time = datetime.now().isoformat()
-                    run(create_task(session_log(f'[{event_time}] Error checking content of {file_path} in binary mode: {e}')))
+                if self.debug:               
+                    create_task(session_log(f'Error checking content of {file_path} in binary mode: {e}'))
         except Exception as e:
-            if self.debug:
-                event_time = datetime.now().isoformat()
-                run(create_task(session_log(f'[{event_time}] Error checking content of {file_path}: {e}')))
+            if self.debug:          
+                create_task(session_log(f'Error checking content of {file_path}: {e}'))
         return False
 
     async def cache_event(self, event_details, cache_key, log_threshold):
@@ -286,25 +284,24 @@ class ChangeHandler(FileSystemEventHandler):
         """
         Backup the log file if it exceeds a certain size.
         """
-        try:
-            with open(log_filename, 'r') as file:
-                lines = file.readlines()
-                if len(lines) >= 1000:
-                    backup_dir = join(script_dir, 'logs', 'saved')
-                    makedirs(backup_dir, exist_ok=True)
-                    backup_filename = join(backup_dir, basename(log_filename))
-                    with open(backup_filename, 'a') as backup_file:
-                        backup_file.writelines(lines)
-                    with open(log_filename, 'w') as file:
-                        pass
-        except FileNotFoundError:
-            if self.debug:
-                event_time = datetime.now().isoformat()
-                run(create_task(session_log(f'[{event_time}] Log file not found for backup: {log_filename}')))
-        except Exception as e:
-            if self.debug:
-                event_time = datetime.now().isoformat()
-                run(create_task(session_log(f'[{event_time}] Error during log file backup: {e}')))
+        if exists(log_filename):
+            try:
+                with open(log_filename, 'r') as file:
+                    lines = file.readlines()
+                    if len(lines) >= 1000:
+                        backup_dir = join(script_dir, 'logs', 'saved')
+                        makedirs(backup_dir, exist_ok=True)
+                        backup_filename = join(backup_dir, basename(log_filename))
+                        with open(backup_filename, 'a') as backup_file:
+                            backup_file.writelines(lines)
+                        with open(log_filename, 'w') as file:
+                            pass
+            except FileNotFoundError:
+                if self.debug:
+                    create_task(session_log(f'Log file not found for backup: {log_filename}'))
+            except Exception as e:
+                if self.debug:
+                    create_task(session_log(f'Error during log file backup: {e}'))
 
     def flush_caches(self):
         """

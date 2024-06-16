@@ -4,6 +4,7 @@ import time
 from PyQt5.QtWidgets import QApplication, QLabel, QWidget, QVBoxLayout, QPushButton, QHBoxLayout, QGraphicsDropShadowEffect, QTextEdit, QScrollBar
 from PyQt5.QtCore import Qt, QSize, pyqtSignal
 from PyQt5.QtGui import QMovie, QColor, QIcon, QTextCursor
+import os
 from scanner import scanner
 
 class DogWidget(QWidget):
@@ -130,9 +131,15 @@ class TextReaderWidget(QWidget):
         self.last_position = 0
 
     def readFile(self):
+        log_file_path = './logs/session.log'
+        
+        if not os.path.exists(log_file_path):
+            with open(log_file_path, 'w') as file:
+                file.write("")  # Crea el archivo si no existe
+        
         while True:
             try:
-                with open('./logs/session.log', 'r') as file:
+                with open(log_file_path, 'r') as file:
                     file.seek(self.last_position)
                     new_content = file.read()
                     if new_content:
