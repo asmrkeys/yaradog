@@ -1,4 +1,4 @@
-from funcs import script_dir, yara_scan, session_log
+from monitoring.funcs import script_dir, yara_scan, session_log
 from asyncio import Lock, create_task, sleep, get_running_loop, run
 from aiofiles import open as aiofiles_open
 from watchdog.events import FileSystemEventHandler

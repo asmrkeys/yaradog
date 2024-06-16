@@ -1,8 +1,8 @@
-import asyncio
-from funcs import read_partitions_from_json, json_filename, gen_json, session_log, initialize_lock
-from handler import ChangeHandler, sleep
+from monitoring.funcs import read_partitions_from_json, json_filename, gen_json, session_log, initialize_lock
+from monitoring.handler import ChangeHandler, sleep
 from watchdog.observers import Observer
 from threading import Thread
+import asyncio
 
 def start_monitoring(paths, loop):
     """

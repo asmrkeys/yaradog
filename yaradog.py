@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, 
     QScrollBar
 )
-from scanner import scanner
+from monitoring.scanner import scanner
 import sys
 import threading
 import time
@@ -112,8 +112,8 @@ class DogWidget(QWidget):
         self.textReader.show()
 
     def backup_and_clear_log(self):
-        log_file_path = './logs/session.log'
-        backup_dir = './logs/saved/'
+        log_file_path = './monitoring/logs/session.log'
+        backup_dir = './monitoring/logs/saved/'
         backup_file_path = os.path.join(backup_dir, 'session.log')
 
         if not os.path.exists(backup_dir):
@@ -161,7 +161,7 @@ class TextReaderWidget(QWidget):
         self.last_position = 0
 
     def readFile(self):
-        log_file_path = './logs/session.log'
+        log_file_path = './monitoring/logs/session.log'
         
         if not os.path.exists(log_file_path):
             with open(log_file_path, 'w') as file:
