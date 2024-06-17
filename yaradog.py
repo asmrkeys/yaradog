@@ -147,7 +147,7 @@ class TextReaderWidget(QWidget):
         self.textEdit = QTextEdit(self)
         self.textEdit.setReadOnly(True)
 
-        self.lockButton = QPushButton('Lock Scroll', self)
+        self.lockButton = QPushButton('Unlock Scroll', self)
         self.lockButton.setCheckable(True)
         self.lockButton.setChecked(True)
         self.lockButton.toggled.connect(self.toggleLock)
