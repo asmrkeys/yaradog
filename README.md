@@ -5,7 +5,12 @@
 
 Uses `YARA` and `Watchdog` for malware and payload prevention. `ChangeHandler` defense mode can be enabled to automatically delete malware files if is detected by YARA and with the aggressive mode active we will delete any file created with any extension configured. 
 
-Use `python config.py -h` to check the available configurations.
+# Notes 0.5.1:
+* Front end in progress:
+- Pending assignment of different dog positions, barking, and alarm systems
+- Pending creation of configuration menu.
+* Pending backups to external device and file cleanup.
+* Review of cache and aggressive mode: The cache system was being changed, and now there are some strange behaviors to check in the log system. This needs to be reviewed.
 
 # **Credits:**
 - **YARA:** *The pattern matching swiss knife*<br>The project uses the [yara-python](https://github.com/VirusTotal/yara-python) library. YARA Open Source [here](https://github.com/virustotal/yara).

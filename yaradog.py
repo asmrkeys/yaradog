@@ -12,13 +12,15 @@ from PyQt5.QtWidgets import (
     QScrollBar
 )
 from monitoring.scanner import scanner
+import ctypes
 import sys
 import threading
 import time
 import os
-import ctypes
 
-class DogWidget(QWidget):
+script_dir = os.path.dirname(os.path.abspath(__file__))
+
+class Yaradog(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
@@ -26,62 +28,62 @@ class DogWidget(QWidget):
     def initUI(self):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
         self.setAttribute(Qt.WA_TranslucentBackground)
-        self.setWindowIcon(QIcon("./assets/yaradog_icon.ico"))
+        self.setWindowIcon(QIcon(os.path.join(script_dir, "assets/yaradog_icon.ico")))
 
-        main_layout = QVBoxLayout()
-        gif_layout = QHBoxLayout()
-        buttons_layout = QHBoxLayout()
-        buttons_layout.setSpacing(2)
+        mainLayout = QVBoxLayout()
+        gifLayout = QHBoxLayout()
+        buttonsLayout = QHBoxLayout()
+        buttonsLayout.setSpacing(2)
 
         self.label = QLabel(self)
 
-        self.movie = QMovie("./assets/doggie.gif")
+        self.movie = QMovie(os.path.join(script_dir, "assets/doggie.gif"))
         self.movie.setScaledSize(QSize(120, 120))
         self.label.setMovie(self.movie)
         self.movie.start()
 
-        gif_layout.addWidget(self.label)
+        gifLayout.addWidget(self.label)
 
         self.closeButton = QPushButton('X', self)
         self.closeButton.clicked.connect(self.close)
         self.closeButton.setFixedSize(25, 25)
         self.closeButton.setStyleSheet("background-color: red; color: white; border: none;")
-        self.addShadowEffect(self.closeButton)
+        self.shadowEffect(self.closeButton)
 
         self.confButton = QPushButton(self)
         self.confButton.setFixedSize(25, 25)
-        self.confButton.setIcon(QIcon("./assets/gear_icon.png"))
+        self.confButton.setIcon(QIcon(os.path.join(script_dir, "assets/gear_icon.png")))
         self.confButton.setStyleSheet("""
             background-color: gray;
             border: 1px solid black;
             border-radius: 3px;
         """)
-        self.addShadowEffect(self.confButton)
+        self.shadowEffect(self.confButton)
 
         self.playButton = QPushButton(self)
         self.playButton.setFixedSize(25, 25)
-        self.playButton.setIcon(QIcon("./assets/play_icon.png"))
+        self.playButton.setIcon(QIcon(os.path.join(script_dir, "assets/play_icon.png")))
         self.playButton.setStyleSheet("""
             background-color: green;
             border: 1px solid black;
             border-radius: 3px;
         """)
         self.playButton.clicked.connect(self.startMonitoring)
-        self.addShadowEffect(self.playButton)
+        self.shadowEffect(self.playButton)
 
-        buttons_layout.addWidget(self.playButton)
-        buttons_layout.addWidget(self.confButton)
-        buttons_layout.addWidget(self.closeButton)
+        buttonsLayout.addWidget(self.playButton)
+        buttonsLayout.addWidget(self.confButton)
+        buttonsLayout.addWidget(self.closeButton)
 
-        main_layout.addLayout(gif_layout)
-        main_layout.addLayout(buttons_layout)
-        self.setLayout(main_layout)
+        mainLayout.addLayout(gifLayout)
+        mainLayout.addLayout(buttonsLayout)
+        self.setLayout(mainLayout)
 
         self.setFixedSize(150, 180)
 
         self.dragging = False
 
-    def addShadowEffect(self, button):
+    def shadowEffect(self, button):
         shadow = QGraphicsDropShadowEffect()
         shadow.setBlurRadius(5)
         shadow.setXOffset(2)
@@ -92,12 +94,12 @@ class DogWidget(QWidget):
     def mousePressEvent(self, event):
         if event.button() == Qt.LeftButton:
             self.dragging = True
-            self.drag_start_position = event.globalPos() - self.frameGeometry().topLeft()
+            self.dragStartPosition = event.globalPos() - self.frameGeometry().topLeft()
             event.accept()
 
     def mouseMoveEvent(self, event):
         if self.dragging:
-            self.move(event.globalPos() - self.drag_start_position)
+            self.move(event.globalPos() - self.dragStartPosition)
             event.accept()
 
     def mouseReleaseEvent(self, event):
@@ -106,25 +108,25 @@ class DogWidget(QWidget):
             event.accept()
 
     def startMonitoring(self):
-        self.backup_and_clear_log()
+        self.logSave()
         threading.Thread(target=scanner, daemon=True).start()
         self.textReader = TextReaderWidget()
         self.textReader.show()
 
-    def backup_and_clear_log(self):
-        log_file_path = './monitoring/logs/session.log'
-        backup_dir = './monitoring/logs/saved/'
-        backup_file_path = os.path.join(backup_dir, 'session.log')
+    def logSave(self):
+        logFilePath = os.path.join(script_dir, 'monitoring/logs/session.log')
+        backupDir = os.path.join(script_dir, 'monitoring/logs/saved/')
+        backupFilePath = os.path.join(backupDir, 'session.log')
 
-        if not os.path.exists(backup_dir):
-            os.makedirs(backup_dir)
+        if not os.path.exists(backupDir):
+            os.makedirs(backupDir)
 
-        if os.path.exists(log_file_path):
-            with open(log_file_path, 'r') as file:
+        if os.path.exists(logFilePath):
+            with open(logFilePath, 'r') as file:
                 lines = file.readlines()
-                with open(backup_file_path, 'a') as backup_file:
-                    backup_file.writelines(lines)
-            with open(log_file_path, 'w') as file:
+                with open(backupFilePath, 'a') as backupFile:
+                    backupFile.writelines(lines)
+            with open(logFilePath, 'w') as file:
                 pass  # Clear the log file
 
 class TextReaderWidget(QWidget):
@@ -141,7 +143,7 @@ class TextReaderWidget(QWidget):
     def initUI(self):
         self.setWindowTitle('yaradog.log')
         self.setGeometry(100, 100, 400, 300)
-        self.setWindowIcon(QIcon("./assets/yaradog_icon.ico"))
+        self.setWindowIcon(QIcon(os.path.join(script_dir, "assets/yaradog_icon.ico")))
 
         layout = QVBoxLayout()
         self.textEdit = QTextEdit(self)
@@ -158,44 +160,44 @@ class TextReaderWidget(QWidget):
 
         self.textChanged.connect(self.updateText)
         self.autoScroll = True
-        self.last_position = 0
+        self.lastPosition = 0
 
     def readFile(self):
-        log_file_path = './monitoring/logs/session.log'
+        logFilePath = os.path.join(script_dir, 'monitoring/logs/session.log')
         
-        if not os.path.exists(log_file_path):
-            with open(log_file_path, 'w') as file:
+        if not os.path.exists(logFilePath):
+            with open(logFilePath, 'w') as file:
                 file.write("")
         
         while True:
             try:
-                with open(log_file_path, 'r') as file:
+                with open(logFilePath, 'r') as file:
                     lines = file.readlines()
                     if len(lines) <= 1:
-                        self.last_position = 0  # Reset position if file is cleared or nearly empty
+                        self.lastPosition = 0  # Reset position if file is cleared or nearly empty
                     else:
-                        file.seek(self.last_position)
-                        new_content = file.read()
-                        if new_content:
-                            self.last_position = file.tell()
-                            self.textChanged.emit(new_content)
+                        file.seek(self.lastPosition)
+                        newContent = file.read()
+                        if newContent:
+                            self.lastPosition = file.tell()
+                            self.textChanged.emit(newContent)
                 time.sleep(.3)
             except Exception as e:
                 self.textChanged.emit(f"Error loading file: {e}")
                 time.sleep(.3)
 
-    def updateText(self, new_content):
-        scroll_value = self.textEdit.verticalScrollBar().value()
-        scroll_max = self.textEdit.verticalScrollBar().maximum()
+    def updateText(self, newContent):
+        scrollValue = self.textEdit.verticalScrollBar().value()
+        scrollMax = self.textEdit.verticalScrollBar().maximum()
 
         cursor = self.textEdit.textCursor()
         cursor.movePosition(QTextCursor.End)
-        cursor.insertText(new_content)
+        cursor.insertText(newContent)
 
         if self.autoScroll:
             self.textEdit.moveCursor(QTextCursor.End)
         else:
-            self.textEdit.verticalScrollBar().setValue(scroll_value)
+            self.textEdit.verticalScrollBar().setValue(scrollValue)
 
     def toggleLock(self, checked):
         if checked:
@@ -207,9 +209,9 @@ class TextReaderWidget(QWidget):
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
-    app.setWindowIcon(QIcon("./assets/yaradog_icon.ico"))
-    myappid = 'yaradog.ipd.v0.5.0' 
-    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
-    dog = DogWidget()
-    dog.show()
+    app.setWindowIcon(QIcon(os.path.join(script_dir, "assets/yaradog_icon.ico")))
+    app_id = 'asmrkeys.yaradog.ipd.0.5.1' 
+    ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
+    yaradog = Yaradog()
+    yaradog.show()
     sys.exit(app.exec_())
