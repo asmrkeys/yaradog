@@ -2,7 +2,7 @@ from json import dump, load
 from psutil import disk_partitions
 from os.path import dirname, join, abspath
 from os import walk, makedirs
-from asyncio import Lock, run, get_running_loop
+from asyncio import Lock, run
 from aiofiles import open as aiofiles_open
 import yara
 
@@ -37,23 +37,23 @@ def get_partitions():
             partitions.append(part.mountpoint)
     return partitions
 
-async def gen_json():
+def gen_json():
     """
     Generate a JSON file with all directories in all partitions.
     """
     partitions = get_partitions()
     all_directories = {}
     total_directories = 0
-    await session_log('Scanning partitions...')
+    run(session_log('Scanning partitions...'))
     for partition in partitions:
-        await session_log(f'Scanning {partition}...')
+        run(session_log(f'Scanning {partition}...'))
         directories = list_directories(partition)
         all_directories[partition] = directories
         total_directories += len(directories)
-    await session_log(f'Total directories: {total_directories}')
+    run(session_log(f'Total directories: {total_directories}'))
     with open(json_filename, 'w') as f:
         dump(all_directories, f, indent=4)
-    await session_log(f'JSON saved at {json_filename}')
+    run(session_log(f'JSON saved at {json_filename}'))
 
 def read_partitions_from_json(json_file):
     """

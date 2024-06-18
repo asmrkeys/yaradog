@@ -210,7 +210,7 @@ class TextReaderWidget(QWidget):
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(os.path.join(script_dir, "assets/yaradog_icon.ico")))
-    app_id = 'asmrkeys.yaradog.ipd.0.5.1' 
+    app_id = 'asmrkeys.yaradog.ipd.0.5.3' 
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
     yaradog = Yaradog()
     yaradog.show()

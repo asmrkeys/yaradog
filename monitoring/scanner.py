@@ -9,7 +9,7 @@ def start_monitoring(paths, loop):
     Start monitoring the given paths for changes.
     """
     observer = Observer()
-    handler = ChangeHandler(loop=loop, debug=True, defense=True, aggressive=True)
+    handler = ChangeHandler(loop=loop, debug=False, defense=True, aggressive=True)
     asyncio.run_coroutine_threadsafe(session_log('Starting monitoring for changes...'), loop).result()
     for path in paths:
         observer.schedule(handler, path, recursive=True)
@@ -30,10 +30,10 @@ def scan_tree(loop):
     start_monitoring(paths, loop)
 
 def scanner():
+    gen_json()  # Generate the JSON file before starting the event loop
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     initialize_lock()  # Initializes the lock in the current event loop
-    asyncio.run(gen_json())  # Run gen_json() after lock initialization
     t = Thread(target=loop.run_forever)
     t.start()
     try:
