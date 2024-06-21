@@ -5,7 +5,7 @@
 
 Uses `YARA` and `Watchdog` for malware and payload prevention. `ChangeHandler` defense mode can be enabled to automatically delete malware files if is detected by YARA and with the aggressive mode active we will delete any file created with any extension configured. 
 
-# Notes 0.5.3:
+# Notes 0.5.4:
 * Front end in progress:
 - Pending assignment of different dog positions, barking, and alarm systems
 - Pending creation of configuration menu.
