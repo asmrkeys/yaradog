@@ -1,14 +1,10 @@
 from monitoring.funcs import script_dir, yara_scan, session_log
-from asyncio import Lock, create_task, sleep, run_coroutine_threadsafe
-from aiofiles import open as aiofiles_open
+from asyncio import Lock, sleep, run_coroutine_threadsafe
 from watchdog.events import FileSystemEventHandler
-from os.path import join, getsize, exists, basename, dirname
-from os import makedirs
 from subprocess import run as subprocess_run, PIPE
-from json import dumps
-from atexit import register
+from os.path import join, getsize, exists
+from os import getlogin
 from datetime import datetime
-import asyncio
 
 class ChangeHandler(FileSystemEventHandler):
     def __init__(self, loop, debug=False, defense=False, aggressive=False):
@@ -18,10 +14,11 @@ class ChangeHandler(FileSystemEventHandler):
         self.loop = loop
         self.yara_forge_rules_full_path = join(script_dir, 'yara', 'yara-forge-rules-full.yar')
         self.session_log_path = join(script_dir, 'logs', 'session.log')
+        self.windows_username = getlogin()
 
         self.scan_whitelist_path = join(script_dir, 'conf', 'whitelist.txt')
         with open(self.scan_whitelist_path, 'r') as f:
-            whitelist_paths = f.read().splitlines()
+            whitelist_paths = [line.replace('<username>', self.windows_username) for line in f.read().splitlines()]
         self.scan_whitelist_tuple = tuple(whitelist_paths)
 
         self.file_extensions_path = join(script_dir, 'conf', 'file_extensions.txt')
@@ -64,53 +61,55 @@ class ChangeHandler(FileSystemEventHandler):
             'yara_rule': yara_rule
         }
 
-        if yara_scan(event_path)[0]:
-            await session_log(f'WARNING: Malware detected in: "{event_path}"')
-            if not event_details['file_path'].startswith(self.scan_whitelist_tuple) and event_path.lower() != self.yara_forge_rules_full_path.lower():
-                if self.defense:
-                    await self.delete_file(event_time, event_path, event_details)
-            await session_log(f'INFO: Alert received by {yara_scan(event_path)[1]} YARA Rule in "{event_path}"')
-        
-        if event_type == 'File created':
-            if event_details['file_path'].endswith(self.file_extensions_tuple):
-                await session_log(f'WARNING: File with a configured extension created in: "{event_path}"')
-                if not event_details['file_path'].startswith(self.scan_whitelist_tuple):
-                    if self.aggressive:
+        if not event_details['file_path'].startswith(self.scan_whitelist_tuple):
+
+            if yara_scan(event_path)[0]:
+                await session_log(f'WARNING: Malware detected in: "{event_path}"')
+                if event_path.lower() != self.yara_forge_rules_full_path.lower():
+                    if self.defense:
                         await self.delete_file(event_time, event_path, event_details)
-            await session_log(f'Attention: File created in: "{event_path}"')
+                await session_log(f'INFO: Alert received by {yara_scan(event_path)[1]} YARA Rule in "{event_path}"')
+            
+            elif event_type == 'File created':
+                if event_details['file_path'].endswith(self.file_extensions_tuple):
+                    await session_log(f'WARNING: File with a configured extension created in: "{event_path}"')
+                    if not event_details['file_path'].startswith(self.scan_whitelist_tuple):
+                        if self.aggressive:
+                            await self.delete_file(event_time, event_path, event_details)
+                await session_log(f'Attention: File created in: "{event_path}"')
 
-        elif event_type == 'File modified':
-            if event_details['file_path'].endswith(self.file_extensions_tuple):
-                await session_log(f'WARNING: File with a configured extension modified in: "{event_path}"')
-            if event_path.lower() != self.session_log_path.lower():
-                await session_log(f'Attention: File modified in: "{event_path}"')
+            elif event_type == 'File modified':
+                if event_details['file_path'].endswith(self.file_extensions_tuple):
+                    await session_log(f'WARNING: File with a configured extension modified in: "{event_path}"')
+                elif event_path.lower() != self.session_log_path.lower():
+                    await session_log(f'Attention: File modified in: "{event_path}"')
 
-        elif event_type == 'File deleted':
-            await session_log(f'Attention: File deleted in: "{event_path}"')
+            elif event_type == 'File deleted':
+                await session_log(f'Attention: File deleted in: "{event_path}"')
 
-        elif event_type == 'File moved':
-            await session_log(f'Attention: File moved from "{event_path}" to "{dest_path}"')
+            elif event_type == 'File moved':
+                await session_log(f'Attention: File moved from "{event_path}" to "{dest_path}"')
 
-        elif event_type == 'Directory created':
-            await session_log(f'Attention: Directory created in: "{event_path}"')
+            elif event_type == 'Directory created':
+                await session_log(f'Attention: Directory created in: "{event_path}"')
 
-        elif event_type == 'Directory modified':
-            await session_log(f'Attention: Directory modified in: "{event_path}"')
+            elif event_type == 'Directory modified':
+                await session_log(f'Attention: Directory modified in: "{event_path}"')
 
-        elif event_type == 'Directory deleted':
-            await session_log(f'Attention: Directory deleted in: "{event_path}"')
+            elif event_type == 'Directory deleted':
+                await session_log(f'Attention: Directory deleted in: "{event_path}"')
 
-        elif event_type == 'Link created':
-            await session_log(f'Attention: Link created in: "{event_path}"')
+            elif event_type == 'Link created':
+                await session_log(f'Attention: Link created in: "{event_path}"')
 
-        elif event_type == 'Link deleted':
-            await session_log(f'Attention: Link deleted in: "{event_path}"')
+            elif event_type == 'Link deleted':
+                await session_log(f'Attention: Link deleted in: "{event_path}"')
 
-        elif event_type == 'Link modified':
-            await session_log(f'Attention: Link modified in: "{event_path}"')
+            elif event_type == 'Link modified':
+                await session_log(f'Attention: Link modified in: "{event_path}"')
 
-        elif event_type == 'Link moved':
-            await session_log(f'Attention: Link moved from "{event_path}" to "{dest_path}"')
+            elif event_type == 'Link moved':
+                await session_log(f'Attention: Link moved from "{event_path}" to "{dest_path}"')
 
     async def delete_file(self, event_time, event_path, event_details):
         """
@@ -132,13 +131,13 @@ class ChangeHandler(FileSystemEventHandler):
         return yara_scan(event_path)[1]
 
     def on_created(self, event):
-        asyncio.run_coroutine_threadsafe(self.log_event('File created', event.src_path), self.loop)
+        run_coroutine_threadsafe(self.log_event('File created', event.src_path), self.loop)
 
     def on_deleted(self, event):
-        asyncio.run_coroutine_threadsafe(self.log_event('File deleted', event.src_path), self.loop)
+        run_coroutine_threadsafe(self.log_event('File deleted', event.src_path), self.loop)
 
     def on_modified(self, event):
-        asyncio.run_coroutine_threadsafe(self.log_event('File modified', event.src_path), self.loop)
+        run_coroutine_threadsafe(self.log_event('File modified', event.src_path), self.loop)
 
     def on_moved(self, event):
-        asyncio.run_coroutine_threadsafe(self.log_event('File moved', event.src_path, event.dest_path), self.loop)
+        run_coroutine_threadsafe(self.log_event('File moved', event.src_path, event.dest_path), self.loop)
