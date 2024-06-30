@@ -11,7 +11,7 @@ from PyQt5.QtWidgets import (
     QTextEdit, 
     QScrollBar
 )
-from monitoring.scanner import scanner
+from monitoring.scanners import filesystem_scanner, stop_event
 import ctypes
 import sys
 import threading
@@ -24,6 +24,7 @@ class Yaradog(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.textReader = None
 
     def initUI(self):
         self.setWindowFlags(Qt.WindowStaysOnTopHint | Qt.FramelessWindowHint)
@@ -36,12 +37,10 @@ class Yaradog(QWidget):
         buttonsLayout.setSpacing(2)
 
         self.label = QLabel(self)
-
         self.movie = QMovie(os.path.join(script_dir, "assets/doggie.gif"))
         self.movie.setScaledSize(QSize(120, 120))
         self.label.setMovie(self.movie)
         self.movie.start()
-
         gifLayout.addWidget(self.label)
 
         self.closeButton = QPushButton('X', self)
@@ -109,7 +108,7 @@ class Yaradog(QWidget):
 
     def startMonitoring(self):
         self.logSave()
-        threading.Thread(target=scanner, daemon=True).start()
+        threading.Thread(target=filesystem_scanner, daemon=True).start()
         self.textReader = TextReaderWidget()
         self.textReader.show()
 
@@ -128,6 +127,13 @@ class Yaradog(QWidget):
                     backupFile.writelines(lines)
             with open(logFilePath, 'w') as file:
                 pass  # Clear the log file
+
+    def closeEvent(self, event):
+        # Stop the filesystem scanner and close other windows
+        stop_event.set()  # Signal to stop the monitoring loop
+        if self.textReader:
+            self.textReader.close()  # Close the text reader window
+        event.accept()  # Accept the close event
 
 class TextReaderWidget(QWidget):
     textChanged = pyqtSignal(str)
@@ -207,10 +213,13 @@ class TextReaderWidget(QWidget):
             self.lockButton.setText('Lock Scroll')
             self.autoScroll = False
 
+    def closeEvent(self, event):
+        stop_event.set()  # Signal to stop the monitoring loop
+
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     app.setWindowIcon(QIcon(os.path.join(script_dir, "assets/yaradog_icon.ico")))
-    app_id = 'asmrkeys.yaradog.ipd.0.5.3' 
+    app_id = 'asmrkeys.yaradog.ipd.0.5.5' 
     ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(app_id)
     yaradog = Yaradog()
     yaradog.show()

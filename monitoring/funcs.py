@@ -105,8 +105,6 @@ async def backup_log_file(log_filename):
     async with aiofiles_open(log_filename, 'w') as log_file:
         await log_file.write("")
 
-    print(f"Backup of {log_filename} completed. Backup saved to {backup_filename}")
-
 async def session_log(log_text):
     """
     Asynchronously logs the provided text to the session log file.
@@ -127,12 +125,10 @@ async def session_log(log_text):
                 async with aiofiles_open(log_filename, 'a') as log_file:
                     await log_file.write(log_text + '\n')
                 last_log_text = log_text  # Update the last logged text
-                
                 # Check the size of the log file and backup if necessary
                 log_size = getsize(log_filename)
                 if log_size > max_log_size:
-                    print(f"Log size is {log_size}, initiating backup")
-                    await backup_log_file(log_filename)
+                    await backup_log_file(log_filename, debug)
 
 async def clean_log_cache():
     """

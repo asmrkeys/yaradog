@@ -11,14 +11,34 @@ C:\Users\<username>\AppData\Local\Google\Chrome\User Data
 C:\pagefile.sys
 C:\hiberfil.sys
 C:\swapfile.sys
-C:\Users\<username>\ntuser.dat
 C:\Windows\setupapi.log
 C:\Windows\bootstat.dat
 C:\Users\<username>\AppData
 C:\Windows\appcompat\pca
 C:\Program Files\WindowsApps
 C:\Windows\prefetch
-C:\ProgramData\Packages\
+C:\ProgramData\Packages
 C:\Windows\SystemApps
-C:\Windows\SystemResources\zipfldr.dll.mun
+C:\Windows\SystemResources
 C:\Program Files\Common Files
+C:\ProgramData
+C:\Program Files
+C:\Windows\CbsTemp
+C:\Windows\SystemTemp
+C:\Windows\SoftwareDistribution\Download
+C:\Windows\servicing
+C:\Users\<username>\NTUSER.DAT
+C:\Windows\appcompat
+C:\Windows\apppatch
+C:\Windows\Temp
+C:\Windows\INF
+C:\Windows\assembly
+C:\Windows\Microsoft.NET
+C:\Windows\UUS
+C:\Windows\SoftwareDistribution\DataStore
+C:\Windows\Installer
+C:\Windows\rescache
+C:\Windows\ImmersiveControlPanel
+C:\System Volume Information
+C:\Windows\Fonts
+C:\$Recycle.Bin
