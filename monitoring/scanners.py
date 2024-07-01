@@ -19,10 +19,12 @@ def start_filesystem_monitoring(paths, loop):
     try:
         while not stop_event.is_set():  # Check for stop event
             asyncio.run_coroutine_threadsafe(sleep(1), loop).result()
-    except KeyboardInterrupt:
+    except Exception as e:
+        asyncio.run_coroutine_threadsafe(session_log(f'Error: {e}'), loop).result()
+    finally:
         asyncio.run_coroutine_threadsafe(session_log('Stopping monitoring...'), loop).result()
         observer.stop()
-    observer.join()
+        observer.join()  # Wait for the observer to fully stop
 
 def scan_tree(loop):
     """
@@ -42,5 +44,5 @@ def filesystem_scanner():
         scan_tree(loop)
     finally:
         stop_event.set()  # Signal to stop the monitoring loop
-        loop.call_soon_threadsafe(loop.stop)
-        t.join()
+        loop.call_soon_threadsafe(loop.stop)  # Ensure loop stops
+        t.join()  # Wait for the thread to finish
