@@ -6,9 +6,9 @@
 # Implementations:
 1. Uses `YARA` and `Watchdog` for malware and payload detection. Automatic removal of malware and files with configured extensions can be enabled.
 
-# Notes 0.5.5:
+# Notes 0.5.6:
 - Pending:
-1. [bug to be fixed in TextReaderWidget class](https://github.com/asmrkeys/yaradog/commit/b980035abe9bf51efd6ac1d2f31597489d6d4e70)
+1. [bug to be fixed in TextReaderWidget class](https://github.com/asmrkeys/yaradog/commit/b980035abe9bf51efd6ac1d2f31597489d6d4e70)<br>"Task was destroyed but it is pending!" <--- Hint about the bug
 2. idle_yaradog.png position before running filesystem_scanner,
 3. barking if detects a warning,
 4. creation of notification system,
