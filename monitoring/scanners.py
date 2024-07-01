@@ -34,8 +34,9 @@ def scan_tree(loop):
     paths = read_partitions_from_json(json_filename)
     start_filesystem_monitoring(paths, loop)
 
-def filesystem_scanner(loop):
+def filesystem_scanner():
     gen_json()  # Generate the JSON file before starting the event loop
+    loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)  # Set the provided loop
     initialize_lock()  # Initializes the lock in the current event loop
     t = Thread(target=loop.run_forever)
