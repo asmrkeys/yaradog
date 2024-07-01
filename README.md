@@ -8,10 +8,11 @@
 
 # Notes 0.5.5:
 - Pending:
-1. idle_yaradog.png position before running filesystem_scanner,
-2. barking if detects a warning,
-3. creation of notification system,
-4. creation of configuration menu.
+1. [bug to be fixed in TextReaderWidget class](https://github.com/asmrkeys/yaradog/commit/b980035abe9bf51efd6ac1d2f31597489d6d4e70)
+2. idle_yaradog.png position before running filesystem_scanner,
+3. barking if detects a warning,
+4. creation of notification system,
+5. creation of configuration menu.
 
 # **Credits:**
 - **YARA:** *The pattern matching swiss knife*<br>The project uses the [yara-python](https://github.com/VirusTotal/yara-python) library. YARA Open Source [here](https://github.com/virustotal/yara).
