@@ -19,4 +19,4 @@
 - **Watchdog:** *Python library and shell utilities to monitor filesystem events.*<br>Used for filesystem scanner. OpenSource [here](https://github.com/gorakhargosh/watchdog)
 - **PyQt:** *PyQt is a Python binding of the cross-platform GUI toolkit Qt*<br>The PyQt5 module is used for the frontend. Website [here](https://www.riverbankcomputing.com/software/pyqt/)
 - **psutil:** *Cross-platform lib for process and system monitoring in Python*<br>monitoring/funcs.py uses the disk_partitions function. OpenSource [here](https://github.com/giampaolo/psutil)
-- **aiofiles:** *File support for asyncio*<br>Used in monitoring/funcs.py for asynchronous log writing. OpenSource [here](https://github.com/Tinche/aiofiles)
+- **aiofiles:** *File support for asyncio*<br>monitoring/funcs.py uses the open function. OpenSource [here](https://github.com/Tinche/aiofiles)
