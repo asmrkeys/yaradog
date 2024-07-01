@@ -128,7 +128,7 @@ async def session_log(log_text):
                 # Check the size of the log file and backup if necessary
                 log_size = getsize(log_filename)
                 if log_size > max_log_size:
-                    await backup_log_file(log_filename, debug)
+                    await backup_log_file(log_filename)
 
 async def clean_log_cache():
     """
